@@ -1,0 +1,453 @@
+-- May my fingers rest in peace... also go into raw then copy the web URL then paste, put two " on the start and ending then place loadstring(game:HttpGet( at the start then ))() at the end.
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local TextChatService = game:GetService("TextChatService")
+local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+-- Initial Setup
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+local Humanoid = Character:WaitForChild("Humanoid")
+
+-- Client-sided explosion
+local function createExplosion()
+    local explosion = Instance.new("Explosion")
+    explosion.Position = HumanoidRootPart.Position
+    explosion.BlastRadius = 15
+    explosion.BlastPressure = 0
+    explosion.Visible = false
+    explosion.Parent = workspace
+end
+
+-- Create orbiting parts
+local orbitingParts = {}
+for i = 1, 15 do
+    local part = Instance.new("Part")
+    part.Size = Vector3.new(1, 1, 1)
+    part.Material = Enum.Material.Neon
+    part.Color = Color3.fromRGB(0, 255, 0)
+    part.Anchored = true
+    part.CanCollide = false
+    part.Transparency = 0.3
+    
+    local light = Instance.new("PointLight")
+    light.Brightness = 5
+    light.Range = 5
+    light.Color = part.Color
+    light.Parent = part
+    
+    part.Parent = workspace
+    table.insert(orbitingParts, {
+        Part = part,
+        Speed = 2 + math.random() * 3,
+        Height = 2 + math.random() * 3,
+        Radius = 3 + math.random() * 4,
+        Angle = math.random() * math.pi * 2
+    })
+end
+
+-- Screen effects
+local screenGui = Instance.New("ScreenGui")
+screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+local blackScreen = Instance.new("Frame")
+blackScreen.Size = UDim2.new(1, 0, 1, 0)
+blackScreen.BackgroundColor3 = Color3.new(0, 0, 0)
+blackScreen.Transparency = 1
+blackScreen.ZIndex = 10
+blackScreen.Parent = screenGui
+
+local subtitle1 = Instance.new("TextLabel")
+subtitle1.Size = UDim2.new(1, 0, 0.1, 0)
+subtitle1.Position = UDim2.new(0, 0, 0.5, 0)
+subtitle1.Text = ""
+subtitle1.TextColor3 = Color3.new(1, 1, 1)
+subtitle1.Font = Enum.Font.GothamBlack
+subtitle1.TextSize = 36
+subtitle1.BackgroundTransparency = 1
+subtitle1.TextTransparency = 1
+subtitle1.ZIndex = 11
+subtitle1.Parent = screenGui
+
+local subtitle2 = Instance.new("TextLabel")
+subtitle2.Size = UDim2.new(1, 0, 0.1, 0)
+subtitle2.Position = UDim2.new(0, 0, 0.6, 0)
+subtitle2.Text = ""
+subtitle2.TextColor3 = Color3.fromRGB(50, 255, 50) -- Lime
+subtitle2.Font = Enum.Font.GothamBlack
+subtitle2.TextSize = 48
+subtitle2.BackgroundTransparency = 1
+subtitle2.TextTransparency = 1
+subtitle2.ZIndex = 11
+subtitle2.Parent = screenGui
+
+-- Cooldown display
+local cooldownDisplay = Instance.new("TextLabel")
+cooldownDisplay.Size = UDim2.new(0.1, 0, 0.05, 0)
+cooldownDisplay.Position = UDim2.new(0.9, 0, 0.05, 0)
+cooldownDisplay.Text = "READY"
+cooldownDisplay.TextColor3 = Color3.new(0, 1, 0)
+cooldownDisplay.Font = Enum.Font.GothamBold
+cooldownDisplay.TextSize = 18
+cooldownDisplay.BackgroundTransparency = 0.7
+cooldownDisplay.BackgroundColor3 = Color3.new(0, 0, 0)
+cooldownDisplay.Parent = screenGui
+
+-- Ground highlight
+local groundHighlight = Instance.new("Part")
+groundHighlight.Size = Vector3.new(500, 1, 500)
+groundHighlight.Anchored = true
+groundHighlight.CanCollide = false
+groundHighlight.Transparency = 0.7
+groundHighlight.Color = Color3.fromRGB(50, 255, 50) -- Lime
+groundHighlight.Material = Enum.Material.Neon
+groundHighlight.Parent = workspace
+groundHighlight.Visible = false
+
+-- ESP System
+local espTable = {}
+local function createESP(player)
+    if player == LocalPlayer then return end
+    
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "SpectreESP"
+    highlight.Adornee = player.Character
+    highlight.FillTransparency = 0.8
+    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    highlight.Parent = player.Character or player.CharacterAdded:Wait()
+    
+    local billboard = Instance.new("BillboardGui")
+    billboard.Size = UDim2.new(0, 200, 0, 100)
+    billboard.Adornee = player.Character:WaitForChild("Head")
+    billboard.StudsOffset = Vector3.new(0, 3, 0)
+    billboard.AlwaysOnTop = true
+    billboard.Parent = player.Character
+    
+    local nameText = Instance.new("TextLabel")
+    nameText.Size = UDim2.new(1, 0, 0.4, 0)
+    nameText.Text = player.DisplayName
+    nameText.Font = Enum.Font.GothamBold
+    nameText.TextSize = 16
+    nameText.BackgroundTransparency = 1
+    nameText.Parent = billboard
+    
+    local usernameText = Instance.new("TextLabel")
+    usernameText.Size = UDim2.new(1, 0, 0.3, 0)
+    usernameText.Position = UDim2.new(0, 0, 0.4, 0)
+    usernameText.Text = "@" .. player.Name
+    usernameText.Font = Enum.Font.Gotham
+    usernameText.TextSize = 14
+    usernameText.BackgroundTransparency = 1
+    usernameText.Parent = billboard
+    
+    local healthText = Instance.new("TextLabel")
+    healthText.Size = UDim2.new(1, 0, 0.3, 0)
+    healthText.Position = UDim2.new(0, 0, 0.7, 0)
+    healthText.Text = "100%"
+    healthText.Font = Enum.Font.GothamBlack
+    healthText.TextSize = 18
+    healthText.BackgroundTransparency = 1
+    healthText.Parent = billboard
+    
+    local distanceText = Instance.new("TextLabel")
+    distanceText.Size = UDim2.new(1, 0, 0.2, 0)
+    distanceText.Position = UDim2.new(0, 0, 0.9, 0)
+    distanceText.Text = "0 studs"
+    distanceText.Font = Enum.Font.Gotham
+    distanceText.TextSize = 12
+    distanceText.BackgroundTransparency = 1
+    distanceText.Parent = billboard
+    
+    player.CharacterAdded:Connect(function(character)
+        highlight.Adornee = character
+        billboard.Adornee = character:WaitForChild("Head")
+        
+        local humanoid = character:WaitForChild("Humanoid")
+        humanoid.HealthChanged:Connect(function()
+            local healthPercent = math.floor((humanoid.Health / humanoid.MaxHealth) * 100)
+            healthText.Text = healthPercent .. "%"
+            
+            -- Health-based formatting
+            if player.Team ~= LocalPlayer.Team then
+                highlight.FillColor = Color3.new(1, 0, 0)
+                highlight.OutlineColor = Color3.new(1, 0.5, 0)
+                healthText.Visible = false
+            else
+                if healthPercent <= 15 then
+                    healthText.TextColor3 = Color3.new(1, 1, 0) -- Yellow
+                    healthText.TextSize = 24
+                    highlight.FillColor = Color3.new(1, 1, 0)
+                elseif healthPercent <= 35 then
+                    healthText.TextColor3 = Color3.new(1, 0, 0) -- Red
+                    healthText.TextSize = 20
+                    highlight.FillColor = Color3.new(1, 0, 0)
+                else
+                    healthText.TextColor3 = Color3.new(0, 1, 0) -- Green
+                    healthText.TextSize = 18
+                    highlight.FillColor = Color3.new(0, 1, 0)
+                end
+            end
+        end)
+    end)
+    
+    return {
+        Highlight = highlight,
+        Billboard = billboard,
+        Update = function(self)
+            if player.Character and player.Character:FindFirstChild("Head") and Character and HumanoidRootPart then
+                local distance = (HumanoidRootPart.Position - player.Character.Head.Position).Magnitude
+                distanceText.Text = math.floor(distance) .. " studs"
+                
+                -- Distance-based coloring for enemies
+                if player.Team ~= LocalPlayer.Team then
+                    local distanceRatio = math.clamp(distance / 50, 0, 1)
+                    highlight.OutlineColor = Color3.new(1, 1 - distanceRatio, 0)
+                end
+            end
+        end
+    }
+end
+
+-- Initialize ESP for all players
+for _, player in ipairs(Players:GetPlayers()) do
+    if player ~= LocalPlayer then
+        espTable[player] = createESP(player)
+    end
+end
+
+Players.PlayerAdded:Connect(function(player)
+    if player ~= LocalPlayer then
+        espTable[player] = createESP(player)
+    end
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+    if espTable[player] then
+        espTable[player].Highlight:Destroy()
+        espTable[player].Billboard:Destroy()
+        espTable[player] = nil
+    end
+end)
+
+-- Teleport System
+local teleportCooldown = false
+local teleportActive = false
+
+local function teleportToClick()
+    if teleportCooldown or not teleportActive then return end
+    
+    local mouse = LocalPlayer:GetMouse()
+    local target = mouse.Hit.Position
+    
+    -- Create effect at current position
+    local startEffect = Instance.new("Part")
+    startEffect.Size = Vector3.new(2, 2, 2)
+    startEffect.Position = HumanoidRootPart.Position
+    startEffect.Anchored = true
+    startEffect.CanCollide = false
+    startEffect.Material = Enum.Material.Neon
+    startEffect.Color = Color3.fromRGB(0, 255, 0)
+    startEffect.Transparency = 0.5
+    startEffect.Parent = workspace
+    
+    local light = Instance.new("PointLight")
+    light.Brightness = 10
+    light.Range = 10
+    light.Color = startEffect.Color
+    light.Parent = startEffect
+    
+    game.Debris:AddItem(startEffect, 1)
+    
+    -- Tween to target
+    TweenService:Create(HumanoidRootPart, TweenInfo.new(0.3), {
+        CFrame = CFrame.new(target.X, target.Y + 3, target.Z)
+    }):Play()
+    
+    -- Create effect at target position
+    local endEffect = startEffect:Clone()
+    endEffect.Position = target
+    endEffect.Parent = workspace
+    game.Debris:AddItem(endEffect, 1)
+    
+    -- Start cooldown
+    teleportCooldown = true
+    cooldownDisplay.Text = "COOLDOWN"
+    cooldownDisplay.TextColor3 = Color3.new(1, 0, 0)
+    
+    for i = 50, 0, -1 do
+        cooldownDisplay.Text = "COOLDOWN: " .. i .. "s"
+        task.wait(1)
+    end
+    
+    cooldownDisplay.Text = "READY"
+    cooldownDisplay.TextColor3 = Color3.new(0, 1, 0)
+    teleportCooldown = false
+end
+
+UserInputService.InputBegan:Connect(function(input, processed)
+    if not processed and input.UserInputType == Enum.UserInputType.MouseButton1 and teleportActive then
+        teleportToClick()
+    end
+end)
+
+-- Domain Expansion Sequence
+local function cleanup()
+    -- Remove all effects
+    for _, part in ipairs(orbitingParts) do
+        part.Part:Destroy()
+    end
+    orbitingParts = {}
+    
+    -- Reset screen effects
+    blackScreen.Transparency = 1
+    subtitle1.TextTransparency = 1
+    subtitle2.TextTransparency = 1
+    subtitle1.Text = ""
+    subtitle2.Text = ""
+    
+    -- Reset ESP
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and espTable[player] then
+            espTable[player].Highlight:Destroy()
+            espTable[player].Billboard:Destroy()
+            espTable[player] = nil
+        end
+    end
+    
+    -- Reset ground highlight
+    groundHighlight.Visible = false
+    
+    -- Reset teleport
+    teleportActive = false
+    cooldownDisplay.Visible = false
+end
+
+local function domainExpansion()
+    -- Initial explosion
+    createExplosion()
+    
+    -- Create orbiting parts
+    for i = 1, 15 do
+        local part = Instance.new("Part")
+        part.Size = Vector3.new(1, 1, 1)
+        part.Material = Enum.Material.Neon
+        part.Color = Color3.fromRGB(0, 255, 0)
+        part.Anchored = true
+        part.CanCollide = false
+        part.Transparency = 0.3
+        
+        local light = Instance.new("PointLight")
+        light.Brightness = 5
+        light.Range = 5
+        light.Color = part.Color
+        light.Parent = part
+        
+        part.Parent = workspace
+        table.insert(orbitingParts, {
+            Part = part,
+            Speed = 2 + math.random() * 3,
+            Height = 2 + math.random() * 3,
+            Radius = 3 + math.random() * 4,
+            Angle = math.random() * math.pi * 2
+        })
+    end
+    
+    -- Chat message
+    task.wait(3)
+    TextChatService.TextChannels.RBXGeneral:SendAsync("FINE. ILL USE THE SPECTRE.")
+    
+    -- Black screen
+    TweenService:Create(blackScreen, TweenInfo.new(0.5), {
+        Transparency = 0
+    }):Play()
+    
+    -- Subtitles
+    task.wait(2)
+    subtitle1.Text = "DOMAIN EXPANSION-"
+    TextChatService.TextChannels.RBXGeneral:SendAsync("DOMAIN EXPANSION")
+    TweenService:Create(subtitle1, TweenInfo.new(0.5), {
+        TextTransparency = 0
+    }):Play()
+    
+    task.wait(1)
+    subtitle2.Text = "SANATORIUM OF EDEN"
+    TweenService:Create(subtitle2, TweenInfo.new(0.5), {
+        TextTransparency = 0
+    }):Play()
+    
+    -- Flash and activate systems
+    task.wait(1)
+    TweenService:Create(blackScreen, TweenInfo.new(0.3), {
+        Transparency = 1
+    }):Play()
+    TweenService:Create(subtitle1, TweenInfo.new(0.3), {
+        TextTransparency = 1
+    }):Play()
+    TweenService:Create(subtitle2, TweenInfo.new(0.3), {
+        TextTransparency = 1
+    }):Play()
+    
+    -- Activate ground highlight
+    groundHighlight.Position = HumanoidRootPart.Position - Vector3.new(0, 3, 0)
+    groundHighlight.Visible = true
+    
+    -- Initialize ESP for all players
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            espTable[player] = createESP(player)
+        end
+    end
+    
+    -- Activate teleport
+    teleportActive = true
+    cooldownDisplay.Visible = true
+    
+    -- Damage check
+    local originalHealth = Humanoid.Health
+    Humanoid.HealthChanged:Connect(function()
+        if Humanoid.Health < originalHealth then
+            cleanup()
+        end
+    end)
+end
+
+-- Death check
+LocalPlayer.CharacterAdded:Connect(function(character)
+    Character = character
+    HumanoidRootPart = character:WaitForChild("HumanoidRootPart")
+    Humanoid = character:WaitForChild("Humanoid")
+    
+    -- Allow re-execution after death
+    domainExpansion()
+end)
+
+-- Start the sequence
+domainExpansion()
+
+-- Orbiting parts animation
+RunService.Heartbeat:Connect(function(deltaTime)
+    if not HumanoidRootPart then return end
+    
+    -- Update orbiting parts
+    for _, data in ipairs(orbitingParts) do
+        data.Angle = (data.Angle + deltaTime * data.Speed) % (math.pi * 2)
+        data.Part.CFrame = HumanoidRootPart.CFrame * CFrame.new(
+            math.sin(data.Angle) * data.Radius,
+            math.cos(os.clock() * data.Speed) * data.Height,
+            math.cos(data.Angle) * data.Radius
+        )
+    end
+    
+    -- Update ESP
+    for _, esp in pairs(espTable) do
+        esp:Update()
+    end
+    
+    -- Update ground highlight
+    if groundHighlight.Visible then
+        groundHighlight.Position = HumanoidRootPart.Position - Vector3.new(0, 3, 0)
+    end
+end)
